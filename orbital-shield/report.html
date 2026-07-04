@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Orbital Shield Planetary Defense System - Solar System Monitoring Panel.">
+    <title>🛡️ Orbital Shield - Solar System Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            image-rendering: pixelated;
+        }
+        body {
+            background-color: #03050a;
+            color: #33ff33;
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* CRT Effects */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            z-index: 9999;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        
+        .crt-glow {
+            animation: textShadow 1.6s infinite;
+        }
+        @keyframes textShadow {
+            0% { text-shadow: 0 0 4px rgba(51, 255, 51, 0.5); }
+            50% { text-shadow: 0 0 10px rgba(51, 255, 51, 0.8), 0 0 2px rgba(51, 255, 51, 0.3); }
+            100% { text-shadow: 0 0 4px rgba(51, 255, 51, 0.5); }
+        }
+
+        /* Canvas background */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* HUD Panels */
+        .hud-panel {
+            position: absolute;
+            z-index: 100;
+            border: 4px double #33ff33;
+            background: rgba(3, 8, 12, 0.85);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 15px rgba(51, 255, 51, 0.25);
+            padding: 15px;
+        }
+
+        /* Left Column Container */
+        .left-column {
+            position: absolute;
+            top: 15px;
+            bottom: 15px;
+            left: 15px;
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .left-column > * {
+            pointer-events: auto;
+        }
+
+        /* Header HUD */
+        .header-panel {
+            position: relative;
+            width: 100%;
+            border-color: #00ccff;
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.25);
+        }
+        .header-panel h1 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 18px;
+            color: #00ccff;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            color: #a6e3e9;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Agent Operations Log Panel */
+        .log-panel {
+            position: relative;
+            width: 100%;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            font-family: 'VT323', monospace;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .log-panel.collapsed {
+            height: 55px;
+            cursor: pointer;
+            border-color: #33ff33;
+            box-shadow: 0 0 15px rgba(51, 255, 51, 0.2);
+            padding: 10px 15px;
+        }
+        .log-panel.collapsed:hover {
+            background: rgba(51, 255, 51, 0.12);
+            box-shadow: 0 0 20px rgba(51, 255, 51, 0.45);
+        }
+        .collapsed-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
+        .log-panel.expanded {
+            height: 260px;
+            cursor: default;
+            border-color: #ffcc00;
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.25);
+            padding: 15px;
+            justify-content: flex-start;
+        }
+        .expanded-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px dashed #ffcc00;
+            padding-bottom: 6px;
+        }
+        .panel-title-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 9px;
+            color: #ffcc00;
+        }
+        .close-btn {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            color: #ffcc00;
+            cursor: pointer;
+            padding: 2px 6px;
+            border: 1px solid transparent;
+        }
+        .close-btn:hover {
+            border-color: #ffcc00;
+            background: rgba(255, 204, 0, 0.15);
+        }
+        .terminal-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            font-family: 'VT323', monospace;
+            font-size: 17px;
+            color: #33ff33;
+            line-height: 1.3;
+            padding-right: 5px;
+        }
+        .terminal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .terminal-body::-webkit-scrollbar-track {
+            background: rgba(2, 5, 10, 0.5);
+        }
+        .terminal-body::-webkit-scrollbar-thumb {
+            background: #ffcc00;
+        }
+        .terminal-line {
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+        .terminal-cursor {
+            animation: blink 0.8s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Telemetry Detail HUD */
+        .detail-panel {
+            position: relative;
+            width: 100%;
+            min-height: 160px;
+        }
+        .panel-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            color: #33ff33;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #33ff33;
+            padding-bottom: 4px;
+        }
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 18px;
+        }
+        .hud-scanning {
+            color: #ffcc00;
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        /* List Panel (Right side) */
+        .list-panel {
+            top: 15px;
+            right: 15px;
+            width: 320px;
+            bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .list-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 11px;
+            color: #33ff33;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #33ff33;
+            padding-bottom: 6px;
+        }
+        .cards-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        /* Custom scrollbar */
+        .cards-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .cards-container::-webkit-scrollbar-track {
+            background: rgba(2, 5, 10, 0.5);
+            border-left: 1px solid #33ff33;
+        }
+        .cards-container::-webkit-scrollbar-thumb {
+            background: #33ff33;
+            border: 1px solid rgba(2, 5, 10, 0.5);
+        }
+
+        /* Risk Cards */
+        .risk-card {
+            border: 2px solid #335533;
+            background: rgba(2, 10, 5, 0.6);
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .risk-card:hover {
+            background: rgba(51, 255, 51, 0.1);
+            border-color: #33ff33;
+            transform: translateX(-4px);
+        }
+        .risk-card.highlight {
+            border-color: #00ccff;
+            background: rgba(0, 204, 255, 0.12);
+            box-shadow: 0 0 10px rgba(0, 204, 255, 0.3);
+        }
+        .risk-card.selected-card {
+            border-color: #ff3366 !important;
+            background: rgba(255, 51, 102, 0.15);
+            box-shadow: 0 0 15px rgba(255, 51, 102, 0.4);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            border-bottom: 1px dashed #335533;
+            padding-bottom: 4px;
+        }
+        .risk-card.highlight .card-header {
+            border-bottom-color: #00ccff;
+        }
+        .risk-card.selected-card .card-header {
+            border-bottom-color: #ff3366;
+        }
+        
+        .asteroid-name {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            color: #ffffff;
+        }
+        .badge {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 8px;
+            padding: 3px 6px;
+            border: 1px solid currentColor;
+        }
+        .badge-high {
+            color: #ff3366;
+            background: rgba(255, 51, 102, 0.1);
+        }
+        .badge-medium {
+            color: #ffcc00;
+            background: rgba(255, 204, 0, 0.1);
+        }
+
+        .card-body p {
+            margin: 4px 0;
+            color: #88ff88;
+            font-size: 16px;
+        }
+        .card-body strong {
+            color: #ffffff;
+        }
+
+        /* Mobile adaptation */
+        @media (max-width: 850px) {
+            .list-panel {
+                display: none;
+            }
+            .detail-panel {
+                width: calc(100% - 30px);
+                left: 15px;
+            }
+            .header-panel {
+                width: calc(100% - 30px);
+                left: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Full-screen Canvas -->
+    <canvas id="spaceCanvas"></canvas>
+
+    <!-- Left Column containing Header, Log Panel, and Telemetry Panel -->
+    <div class="left-column">
+        <!-- Top Left Header Panel -->
+        <header class="hud-panel header-panel">
+            <h1 class="crt-glow">🛡️ ORBITAL SHIELD</h1>
+            <p class="subtitle">Solar System Monitor & Tracking Network</p>
+        </header>
+
+        <!-- Agent Operations Log Panel (Starts collapsed by default) -->
+        <section class="hud-panel log-panel collapsed" id="logPanel" onclick="toggleLogPanel(event)">
+            <!-- Collapsed Content -->
+            <div class="collapsed-content">
+                <span class="panel-title-text crt-glow">[+] AGENT OPERATIONS LOG</span>
+                <span style="font-size:12px; color:#33ff33; animation:pulse 1s infinite alternate">[IDLE]</span>
+            </div>
+            <!-- Expanded Content -->
+            <div class="expanded-content" style="display:none;">
+                <div class="panel-header">
+                    <span class="panel-title-text crt-glow">AGENT OPERATIONS LOG</span>
+                    <span class="close-btn" onclick="toggleLogPanel(event)">[-]</span>
+                </div>
+                <div class="terminal-body" id="terminalBody"></div>
+            </div>
+        </section>
+
+        <!-- Bottom Left Telemetry Detail HUD -->
+        <section class="hud-panel detail-panel">
+            <div class="panel-title">TELEMETRY & TARGET LOCK</div>
+            <div id="hudContent">
+                <p class="hud-scanning">>>> SCANNING CELESTIAL ORBITS...</p>
+                <p>>>> Select an object on the map or list to acquire telemetry lock.</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Right List Panel -->
+    <section class="hud-panel list-panel">
+        <div class="list-title">DETECTED HAZARDS</div>
+        <div class="cards-container" id="cardsContainer">
+            
+            <div class="risk-card" id="card_523808__2007_ML24_" data-name="523808 (2007 ML24)" onclick="selectAsteroid('523808 (2007 ML24)')" onmouseenter="hoverAsteroid('523808 (2007 ML24)')" onmouseleave="clearHover()" style="border-left: 5px solid #ff3366;">
+                <div class="card-header">
+                    <span class="asteroid-name">523808 (2007 ML24)</span>
+                    <span class="badge badge-high">HIGH RISK</span>
+                </div>
+                <div class="card-body">
+                    <p><strong>📅 Approach Date:</strong> 2026-07-04</p>
+                    <p><strong>📏 Est. Diameter:</strong> 802 meters</p>
+                    <p><strong>🌍 Earth Distance:</strong> 3,476,895 km</p>
+                    <p><strong>💨 Rel. Velocity:</strong> 16.76 km/s</p>
+                </div>
+            </div>
+            
+            <div class="risk-card" id="card__2007_AA2_" data-name="(2007 AA2)" onclick="selectAsteroid('(2007 AA2)')" onmouseenter="hoverAsteroid('(2007 AA2)')" onmouseleave="clearHover()" style="border-left: 5px solid #ffcc00;">
+                <div class="card-header">
+                    <span class="asteroid-name">(2007 AA2)</span>
+                    <span class="badge badge-medium">MEDIUM RISK</span>
+                </div>
+                <div class="card-body">
+                    <p><strong>📅 Approach Date:</strong> 2026-07-11</p>
+                    <p><strong>📏 Est. Diameter:</strong> 71 meters</p>
+                    <p><strong>🌍 Earth Distance:</strong> 6,832,281 km</p>
+                    <p><strong>💨 Rel. Velocity:</strong> 7.21 km/s</p>
+                </div>
+            </div>
+            
+        </div>
+    </section>
+
+    <!-- JavaScript code -->
+    <script>
+        const asteroidsData = [{"name": "523808 (2007 ML24)", "date": "2026-07-04", "diameter_m": 802.0, "distance_km": 3476895.0, "velocity_kms": 16.76, "hazard": "Y\u00dcKSEK"}, {"name": "(2007 AA2)", "date": "2026-07-11", "diameter_m": 71.0, "distance_km": 6832281.0, "velocity_kms": 7.21, "hazard": "ORTA"}];
+
+        // Collapsible Log Panel Toggle Handler
+        function toggleLogPanel(e) {
+            if (e) e.stopPropagation();
+            const panel = document.getElementById('logPanel');
+            const collapsedContent = panel.querySelector('.collapsed-content');
+            const expandedContent = panel.querySelector('.expanded-content');
+            
+            if (panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+                panel.classList.add('expanded');
+                collapsedContent.style.display = 'none';
+                expandedContent.style.display = 'flex';
+                playBeep(440, 'sine', 0.08, 0.04);
+            } else {
+                panel.classList.remove('expanded');
+                panel.classList.add('collapsed');
+                collapsedContent.style.display = 'flex';
+                expandedContent.style.display = 'none';
+                playBeep(330, 'sine', 0.08, 0.04);
+            }
+        }
+
+        // Live Agent Steps Terminal Logger Simulation
+        const logLines = [
+            "[Guardrail] API endpoint validated: api.nasa.gov",
+            "[Scout Agent] Executing tool: fetch_nasa_neo_data()",
+            "[Scout Agent] 2 hazards identified. Passing to Analyst.",
+            "[Analyst Agent] Calculating kinetic impact for (2007 AA2). Result: MEDIUM RISK.",
+            "[Security] Write permission restricted to local /output/ path.",
+            "[Reporter Agent] Saving final threat report to /output/report.md"
+        ];
+
+        let logIndex = 0;
+        let currentLineText = "";
+        let charIndex = 0;
+
+        function startTerminalLogs() {
+            const term = document.getElementById('terminalBody');
+            if (!term) return;
+            term.innerHTML = '<div id="logLinesContainer"></div><div id="activeLineContainer">> <span id="activeLineText"></span><span class="terminal-cursor">_</span></div>';
+            typeNextLine();
+        }
+
+        function typeNextLine() {
+            if (logIndex >= logLines.length) {
+                const activeLine = document.getElementById('activeLineContainer');
+                if (activeLine) {
+                    activeLine.innerHTML = '> System Idle. Monitoring orbits...<span class="terminal-cursor">_</span>';
+                }
+                return;
+            }
+            
+            const lineToType = logLines[logIndex];
+            currentLineText = "";
+            charIndex = 0;
+            
+            const activeTextSpan = document.getElementById('activeLineText');
+            
+            function typeChar() {
+                if (charIndex < lineToType.length) {
+                    currentLineText += lineToType.charAt(charIndex);
+                    if (activeTextSpan) activeTextSpan.textContent = currentLineText;
+                    charIndex++;
+                    setTimeout(typeChar, 25 + Math.random() * 25);
+                } else {
+                    const container = document.getElementById('logLinesContainer');
+                    if (container) {
+                        const newLineDiv = document.createElement('div');
+                        newLineDiv.className = 'terminal-line';
+                        
+                        let coloredText = currentLineText;
+                        if (currentLineText.startsWith('[Guardrail]')) {
+                            coloredText = `<span style="color:#00ffff">${currentLineText}</span>`;
+                        } else if (currentLineText.startsWith('[Security]')) {
+                            coloredText = `<span style="color:#ff3366; font-weight:bold">${currentLineText}</span>`;
+                        } else if (currentLineText.startsWith('[Scout Agent]')) {
+                            coloredText = `<span style="color:#ffe082">${currentLineText}</span>`;
+                        } else if (currentLineText.startsWith('[Analyst Agent]')) {
+                            coloredText = `<span style="color:#ffcc00">${currentLineText}</span>`;
+                        } else if (currentLineText.startsWith('[Reporter Agent]')) {
+                            coloredText = `<span style="color:#33ff33">${currentLineText}</span>`;
+                        }
+                        newLineDiv.innerHTML = '> ' + coloredText;
+                        container.appendChild(newLineDiv);
+                    }
+                    
+                    playBeep(700, 'sine', 0.02, 0.015);
+                    
+                    const term = document.getElementById('terminalBody');
+                    if (term) term.scrollTop = term.scrollHeight;
+                    
+                    logIndex++;
+                    if (activeTextSpan) activeTextSpan.textContent = "";
+                    setTimeout(typeNextLine, 1200);
+                }
+            }
+            typeChar();
+        }
+
+        // Web Audio Synth for retro sound effects
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBeep(freq, type, duration, volume = 0.05) {
+            initAudio();
+            if (!audioCtx) return;
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type || 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log("Audio play error", e);
+            }
+        }
+
+        function playRadarSweep() {
+            playBeep(261.63, 'sine', 0.15, 0.03);
+            setTimeout(() => playBeep(329.63, 'sine', 0.15, 0.03), 60);
+        }
+
+        function playLockSound(isHigh) {
+            if (isHigh) {
+                playBeep(783.99, 'sawtooth', 0.1, 0.05);
+                setTimeout(() => playBeep(587.33, 'sawtooth', 0.15, 0.05), 80);
+                setTimeout(() => playBeep(783.99, 'sawtooth', 0.2, 0.05), 160);
+            } else {
+                playBeep(523.25, 'square', 0.1, 0.04);
+                setTimeout(() => playBeep(659.25, 'square', 0.15, 0.04), 100);
+            }
+        }
+
+        // Initialize Canvas
+        const canvas = document.getElementById('spaceCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        let frameCount = 0;
+        let scaleFactor = 1;
+        let selectedAsteroidName = null;
+        let hoveredAsteroidName = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            scaleFactor = Math.min(canvas.width, canvas.height) / 1000;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Stars array
+        const stars = [];
+        for (let i = 0; i < 120; i++) {
+            stars.push({
+                x: Math.random() * 2000,
+                y: Math.random() * 2000,
+                size: Math.random() < 0.25 ? 2 : 1,
+                color: Math.random() < 0.3 ? '#8ecae6' : '#ffffff',
+                twinkleSpeed: 0.01 + Math.random() * 0.03,
+                phase: Math.random() * Math.PI
+            });
+        }
+
+        // Solar System configuration
+        const planets = [
+            { name: 'Mercury', color: '#90a4ae', radius: 4.5, orbitSpeed: 0.015, distanceRatio: 0.12, moons: 0 },
+            { name: 'Venus', color: '#ffd54f', radius: 7, orbitSpeed: 0.011, distanceRatio: 0.20, moons: 0 },
+            { name: 'Earth', color: '#29b6f6', radius: 9, orbitSpeed: 0.008, distanceRatio: 0.32, moons: 1 },
+            { name: 'Mars', color: '#ef5350', radius: 6, orbitSpeed: 0.006, distanceRatio: 0.44, moons: 2 },
+            { name: 'Jupiter', color: '#ffb74d', radius: 17, orbitSpeed: 0.003, distanceRatio: 0.58, moons: 3 },
+            { name: 'Saturn', color: '#ffe082', radius: 14, orbitSpeed: 0.002, distanceRatio: 0.72, moons: 2, hasRings: true },
+            { name: 'Uranus', color: '#b2ebf2', radius: 10, orbitSpeed: 0.001, distanceRatio: 0.84, moons: 1, hasVerticalRings: true },
+            { name: 'Neptune', color: '#5c6bc0', radius: 9.5, orbitSpeed: 0.0006, distanceRatio: 0.94, moons: 1 }
+        ];
+
+        // Give planets different starting positions
+        planets.forEach((p, idx) => {
+            p.angle = idx * 0.8 + 0.5;
+        });
+
+        // Initialize Asteroids Data
+        const processedAsteroids = asteroidsData.map((ast, idx) => {
+            const angle = (idx * (2 * Math.PI / asteroidsData.length)) + 0.5;
+            return {
+                ...ast,
+                angle: angle,
+                visualRadiusFromEarth: 0,
+                x: 0, y: 0
+            };
+        });
+
+        // Scale distance values for Earth vicinity mapping
+        const distances = processedAsteroids.map(a => a.distance_km);
+        const maxDist = Math.max(...distances, 10000000);
+        const minDist = Math.min(...distances, 1000000);
+
+        processedAsteroids.forEach(ast => {
+            let visR = 40;
+            if (maxDist !== minDist) {
+                // Map closest to 32px, farthest to 85px to clear larger Earth-Moon system
+                visR = 32 + ((ast.distance_km - minDist) / (maxDist - minDist)) * 53;
+            }
+            ast.visualRadiusFromEarth = visR;
+        });
+
+        // Mouse interaction on full-screen space map
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            let found = null;
+            processedAsteroids.forEach(ast => {
+                const dist = Math.hypot(ast.x - mouseX, ast.y - mouseY);
+                if (dist < 18) {
+                    found = ast.name;
+                }
+            });
+
+            if (found !== hoveredAsteroidName) {
+                hoveredAsteroidName = found;
+                if (hoveredAsteroidName) {
+                    playRadarSweep();
+                    highlightCard(hoveredAsteroidName);
+                } else {
+                    clearCardHighlights();
+                    if (selectedAsteroidName) {
+                        highlightCard(selectedAsteroidName);
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('click', (e) => {
+            initAudio();
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            processedAsteroids.forEach(ast => {
+                const dist = Math.hypot(ast.x - mouseX, ast.y - mouseY);
+                if (dist < 18) {
+                    selectAsteroid(ast.name);
+                }
+            });
+        });
+
+        // Card connection functions
+        function selectAsteroid(name) {
+            selectedAsteroidName = name;
+            const ast = processedAsteroids.find(a => a.name === name);
+            if (ast) {
+                playLockSound(ast.hazard === "YÜKSEK");
+                updateHUD(ast);
+                highlightCard(name, true);
+                
+                const cardEl = document.getElementById('card_' + sanitizeId(name));
+                if (cardEl) {
+                    cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }
+
+        function hoverAsteroid(name) {
+            hoveredAsteroidName = name;
+            playRadarSweep();
+        }
+
+        function clearHover() {
+            hoveredAsteroidName = null;
+            clearCardHighlights();
+            if (selectedAsteroidName) {
+                highlightCard(selectedAsteroidName);
+            }
+        }
+
+        function sanitizeId(str) {
+            return str.replace(/[^a-zA-Z0-9]/g, '_');
+        }
+
+        function highlightCard(name, isLocked = false) {
+            clearCardHighlights();
+            const id = 'card_' + sanitizeId(name);
+            const el = document.getElementById(id);
+            if (el) {
+                if (isLocked) {
+                    el.classList.add('selected-card');
+                } else {
+                    el.classList.add('highlight');
+                }
+            }
+        }
+
+        function clearCardHighlights() {
+            document.querySelectorAll('.risk-card').forEach(card => {
+                card.classList.remove('highlight');
+                card.classList.remove('selected-card');
+            });
+        }
+
+        function updateHUD(ast) {
+            const hud = document.getElementById('hudContent');
+            const hazardColor = ast.hazard === "YÜKSEK" ? "#ff3366" : "#ffcc00";
+            const badgeText = ast.hazard === "YÜKSEK" ? "HIGH RISK" : "MEDIUM RISK";
+            hud.innerHTML = `
+                <div class="hud-row"><span style="color:#00ccff">TARGET LOCKED:</span> <span style="color:#ffffff">${ast.name}</span></div>
+                <div class="hud-row"><span>HAZARD STATUS:</span> <span style="color:${hazardColor}; font-weight:bold">${badgeText}</span></div>
+                <div class="hud-row"><span>APPROACH DATE:</span> <span>${ast.date}</span></div>
+                <div class="hud-row"><span>DISTANCE TO EARTH:</span> <span>${ast.distance_km.toLocaleString('en-US')} km</span></div>
+                <div class="hud-row"><span>EST. DIAMETER:</span> <span>${Math.round(ast.diameter_m)} meters</span></div>
+                <div class="hud-row"><span>RELATIVE VELOCITY:</span> <span>${ast.velocity_kms.toFixed(2)} km/s</span></div>
+            `;
+        }
+
+        // Draw individual planet features
+        function drawPlanet(p, x, y) {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(x, y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Planet details (stripes, rings etc.)
+            if (p.name === 'Earth') {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, y, p.radius, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.fillStyle = '#2e7d32'; // green landmass
+                const offset = (frameCount * 0.15) % (p.radius * 4);
+                ctx.fillRect(x - p.radius + offset - p.radius * 2, y - 2, 5, 2);
+                ctx.fillRect(x - p.radius + ((offset + 6) % (p.radius * 4)) - p.radius * 2, y + 1, 4, 2);
+                ctx.restore();
+            } else if (p.name === 'Jupiter') {
+                ctx.fillStyle = '#d84315';
+                ctx.fillRect(x - p.radius + 1, y - 3, p.radius * 2 - 2, 2);
+                ctx.fillRect(x - p.radius + 2, y + 2, p.radius * 2 - 4, 2);
+            } else if (p.hasRings) {
+                // Saturn's Ring
+                ctx.strokeStyle = '#ffe082';
+                ctx.lineWidth = 2.5;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(-Math.PI / 8);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.radius * 1.6, p.radius * 0.4, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            } else if (p.hasVerticalRings) {
+                // Uranus's Ring (steep angle)
+                ctx.strokeStyle = '#b2ebf2';
+                ctx.lineWidth = 1;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(Math.PI / 3);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.radius * 1.4, p.radius * 0.35, 0, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        // Sim Loop
+        function draw() {
+            frameCount++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let cx = canvas.width / 2;
+            let cy = canvas.height / 2;
+            let baseScale = Math.min(canvas.width, canvas.height) / 1.8;
+
+            // Center the solar system exactly in the available space between the panels, shifted 80px left
+            if (canvas.width > 850) {
+                const leftBoundary = 460;
+                const rightBoundary = canvas.width - 330;
+                const availableWidth = rightBoundary - leftBoundary;
+                cx = leftBoundary + availableWidth / 2 - 80;
+                // Scale so that the outermost planet (Neptune at 0.94) touches the panel boundaries
+                baseScale = (availableWidth / 2 - 15) / 0.94;
+            }
+
+            // 1. Draw Starfield
+            stars.forEach(star => {
+                const alpha = 0.2 + Math.abs(Math.sin(frameCount * star.twinkleSpeed + star.phase)) * 0.8;
+                ctx.fillStyle = star.color;
+                ctx.globalAlpha = alpha;
+                
+                // Wrap stars within viewport
+                const sx = (star.x) % canvas.width;
+                const sy = (star.y) % canvas.height;
+                ctx.fillRect(sx, sy, star.size, star.size);
+            });
+            ctx.globalAlpha = 1.0;
+
+            // 2. Draw Sun (Enlarged)
+            ctx.fillStyle = '#ffb300';
+            ctx.shadowColor = '#ff6f00';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0; // reset glow
+
+            ctx.fillStyle = '#ffeb3b';
+            ctx.fillRect(cx - 8, cy - 8, 16, 16);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(cx - 4, cy - 4, 8, 8);
+
+            // Sun Label
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '10px "Press Start 2P", cursive';
+            ctx.textAlign = 'center';
+            ctx.fillText("SUN", cx, cy + 38);
+
+            // 3. Draw Planets & their Moons
+            let earthX = 0, earthY = 0;
+
+            planets.forEach(p => {
+                // Slower orbital velocity for visual comfort
+                p.angle += p.orbitSpeed * 0.45;
+
+                const orbitRadius = p.distanceRatio * baseScale;
+
+                // Orbit path line
+                ctx.strokeStyle = 'rgba(51, 255, 51, 0.05)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(cx, cy, orbitRadius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Calculate Position
+                const px = cx + Math.cos(p.angle) * orbitRadius;
+                const py = cy + Math.sin(p.angle) * orbitRadius;
+
+                // Orbiting moons simulation
+                if (p.moons > 0) {
+                    for (let m = 0; m < p.moons; m++) {
+                        const mDist = p.radius + 6 + m * 3;
+                        const mSpeed = 0.04 / (m + 1);
+                        const mAngle = frameCount * mSpeed + m * 1.5;
+                        const mx = px + Math.cos(mAngle) * mDist;
+                        const my = py + Math.sin(mAngle) * mDist;
+
+                        ctx.fillStyle = '#b0bec5';
+                        ctx.beginPath();
+                        ctx.arc(mx, my, 1.2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // Draw the planet
+                drawPlanet(p, px, py);
+
+                // Planet name tags
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.font = '11px "VT323", monospace';
+                ctx.fillText(p.name, px, py - p.radius - 5);
+
+                if (p.name === 'Earth') {
+                    earthX = px;
+                    earthY = py;
+                }
+            });
+
+            // 4. Draw Near-Earth Meteors (Asteroids) around Earth
+            // 4. Draw Near-Earth Meteors (Asteroids) around Earth
+            processedAsteroids.forEach((ast, idx) => {
+                // Calculate orbital angle around Earth
+                const speedCoeff = 0.0003;
+                const currentAngle = ast.angle + frameCount * (ast.velocity_kms * speedCoeff);
+                ast.x = earthX + Math.cos(currentAngle) * ast.visualRadiusFromEarth;
+                ast.y = earthY + Math.sin(currentAngle) * ast.visualRadiusFromEarth;
+
+                const color = ast.hazard === "YÜKSEK" ? "#ff3366" : "#ffcc00";
+
+                // Draw Earth proximity orbit grid line
+                ctx.strokeStyle = (hoveredAsteroidName === ast.name || selectedAsteroidName === ast.name)
+                    ? 'rgba(0, 204, 255, 0.25)'
+                    : 'rgba(51, 255, 51, 0.08)';
+                ctx.setLineDash([2, 2]);
+                ctx.beginPath();
+                ctx.arc(earthX, earthY, ast.visualRadiusFromEarth, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                const isHovered = (hoveredAsteroidName === ast.name);
+                const isSelected = (selectedAsteroidName === ast.name);
+
+                // Draw constant radar diamond tracker around every meteor for high visibility
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.2;
+                ctx.globalAlpha = 0.4 + Math.abs(Math.sin(frameCount * 0.08)) * 0.4; // pulse opacity
+                ctx.beginPath();
+                ctx.moveTo(ast.x, ast.y - 7);
+                ctx.lineTo(ast.x + 7, ast.y);
+                ctx.lineTo(ast.x, ast.y + 7);
+                ctx.lineTo(ast.x - 7, ast.y);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+
+                if (isHovered || isSelected) {
+                    // Tracking Laser beam from Earth to Meteor
+                    ctx.strokeStyle = isSelected ? 'rgba(255, 51, 102, 0.5)' : 'rgba(0, 204, 255, 0.4)';
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(earthX, earthY);
+                    ctx.lineTo(ast.x, ast.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Reticle (Lock-on target brackets)
+                    ctx.strokeStyle = isSelected ? '#ff3366' : '#00ccff';
+                    ctx.lineWidth = 1.5;
+                    const d = 11 + Math.sin(frameCount * 0.1) * 2;
+                    ctx.beginPath();
+                    // Top Left
+                    ctx.moveTo(ast.x - d, ast.y - d + 3); ctx.lineTo(ast.x - d, ast.y - d); ctx.lineTo(ast.x - d + 3, ast.y - d);
+                    // Top Right
+                    ctx.moveTo(ast.x + d, ast.y - d + 3); ctx.lineTo(ast.x + d, ast.y - d); ctx.lineTo(ast.x + d - 3, ast.y - d);
+                    // Bottom Left
+                    ctx.moveTo(ast.x - d, ast.y + d - 3); ctx.lineTo(ast.x - d, ast.y + d); ctx.lineTo(ast.x - d + 3, ast.y + d);
+                    // Bottom Right
+                    ctx.moveTo(ast.x + d, ast.y + d - 3); ctx.lineTo(ast.x + d, ast.y + d); ctx.lineTo(ast.x + d - 3, ast.y + d);
+                    ctx.stroke();
+
+                    // Lock-on Target Label with solid background glow for readability
+                    ctx.save();
+                    ctx.shadowColor = '#000000';
+                    ctx.shadowBlur = 4;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '14px "VT323", monospace';
+                    ctx.fillText(ast.name, ast.x + d + 4, ast.y + 4);
+                    ctx.restore();
+                } else {
+                    // Small label with shadow
+                    ctx.save();
+                    ctx.shadowColor = '#000000';
+                    ctx.shadowBlur = 4;
+                    ctx.fillStyle = 'rgba(51, 255, 51, 0.75)';
+                    ctx.font = '12px "VT323", monospace';
+                    ctx.fillText(ast.name.substring(0, 10), ast.x - 12, ast.y - 10);
+                    ctx.restore();
+                }
+
+                // Draw glowing pixel-art rock (Larger size)
+                ctx.save();
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 8;
+                ctx.fillStyle = color;
+                ctx.fillRect(ast.x - 4, ast.y - 4, 8, 8);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(ast.x - 2, ast.y - 2, 4, 4);
+                ctx.restore();
+            });
+
+            // 5. Draw Legend (bottom right)
+            ctx.fillStyle = 'rgba(3, 8, 12, 0.85)';
+            ctx.fillRect(canvas.width - 290, canvas.height - 40, 275, 25);
+            ctx.strokeStyle = '#33ff33';
+            ctx.strokeRect(canvas.width - 290, canvas.height - 40, 275, 25);
+
+            ctx.font = '12px "VT323", monospace';
+            ctx.textAlign = 'left';
+
+            ctx.fillStyle = '#ff3366';
+            ctx.fillRect(canvas.width - 275, canvas.height - 32, 6, 6);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText("HIGH RISK METEOR", canvas.width - 263, canvas.height - 23);
+
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillRect(canvas.width - 150, canvas.height - 32, 6, 6);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText("MEDIUM RISK METEOR", canvas.width - 138, canvas.height - 23);
+
+            requestAnimationFrame(draw);
+        }
+
+        // Start
+        requestAnimationFrame(draw);
+        startTerminalLogs();
+    </script>
+</body>
+</html>
